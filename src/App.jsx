@@ -24,13 +24,16 @@ import {
   Wand2, 
   Eye, 
   Eraser, 
-  Shapes,
-  LayoutGrid,
-  Search,
-  SlidersHorizontal,
-  Undo2,
-  Redo2,
-  SunMedium
+  Shapes, 
+  LayoutGrid, 
+  Search, 
+  SlidersHorizontal, 
+  Undo2, 
+  Redo2, 
+  SunMedium, 
+  AlignCenterHorizontal, 
+  AlignCenterVertical, 
+  UploadCloud 
 } from 'lucide-react';
 
 const FONTS = [
@@ -74,6 +77,13 @@ const TEXT_EFFECTS = [
   { id: 'GOLD_GLOW', name: '✨ Gold Glow', shadow: new fabric.Shadow({ color: 'rgba(234, 179, 8, 0.7)', blur: 12, offsetX: 0, offsetY: 0 }) },
   { id: 'NEON_GLOW', name: '🌙 Neon Glow', shadow: new fabric.Shadow({ color: 'rgba(56, 189, 248, 0.9)', blur: 14, offsetX: 0, offsetY: 0 }) },
   { id: 'DARK_SHADOW', name: '🌑 Soft Drop', shadow: new fabric.Shadow({ color: 'rgba(0, 0, 0, 0.35)', blur: 6, offsetX: 2, offsetY: 3 }) }
+];
+
+const PHOTO_FILTERS = [
+  { id: 'NORMAL', name: 'ઓરિજિનલ' },
+  { id: 'GRAYSCALE', name: 'B&W (બ્લેક એન્ડ વ્હાઇટ)' },
+  { id: 'SEPIA', name: 'સેપિયા (વિન્ટેજ)' },
+  { id: 'BRIGHT', name: 'બ્રાઇટ પ્લસ' }
 ];
 
 const MASTER_TEMPLATES = [
@@ -202,7 +212,7 @@ const MASTER_TEMPLATES = [
     cat: 'BUSINESS',
     title: 'GRAND OPENING CEREMONY',
     subHeader: '✨ આપનું હાર્દિક સ્વાગત છે ✨',
-    personName: 'JD3 FASHION & LIFESTHUB',
+    personName: 'JD3 FASHION & LIFESTYLE HUB',
     extraInfo1: 'તારીખ: ૨૮ ઓગસ્ટ, ૨૦૨૬ | સમય: સવારે ૯:૦૦ થી',
     extraInfo2: '🎉 પ્રથમ ૧૦૦ ગ્રાહકો માટે ફ્લેટ 30% OFF! 🎉',
     venue: 'શોપ નં. 12, શિવમ આર્કેડ, ઘાટલોડિયા, અમદાવાદ',
@@ -270,19 +280,18 @@ export default function App() {
   const [currentStyle, setCurrentStyle] = useState(LAYOUT_STYLES[0]);
   const [selectedFont, setSelectedFont] = useState(FONTS[0].family);
   const [selectedEffect, setSelectedEffect] = useState('NONE');
+  const [selectedFilter, setSelectedFilter] = useState('NORMAL');
   const [canvasFormat, setCanvasFormat] = useState('PORTRAIT');
   const [frameShape, setFrameShape] = useState('CIRCLE');
   
-  // Mobile View Switcher: 'CONTROLS' | 'PREVIEW'
   const [mobileActiveView, setMobileActiveView] = useState('CONTROLS');
-
   const [fontSizeOffset, setFontSizeOffset] = useState(0);
   const [showCornerBadges, setShowCornerBadges] = useState(true);
   const [customTextColor, setCustomTextColor] = useState('#4F46E5');
   const [elementOpacity, setElementOpacity] = useState(1);
   const [previewScale, setPreviewScale] = useState(1);
 
-  // Undo / Redo History Tracking
+  // History Stack
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const isHistoryAction = useRef(false);
@@ -305,13 +314,13 @@ export default function App() {
     localStorage.setItem('designly_drafts', JSON.stringify(savedDrafts));
   }, [savedDrafts]);
 
-  // Push state to history
-  const pushHistory = (currentFormData, currentStyleObj, effectId) => {
+  const pushHistory = (currentFormData, currentStyleObj, effectId, filterId) => {
     if (isHistoryAction.current) return;
     const snapshot = {
       formData: { ...currentFormData },
       currentStyle: { ...currentStyleObj },
-      selectedEffect: effectId
+      selectedEffect: effectId,
+      selectedFilter: filterId
     };
     const newHistory = history.slice(0, historyIndex + 1);
     setHistory([...newHistory, snapshot]);
@@ -325,6 +334,7 @@ export default function App() {
       setFormData(targetState.formData);
       setCurrentStyle(targetState.currentStyle);
       setSelectedEffect(targetState.selectedEffect || 'NONE');
+      setSelectedFilter(targetState.selectedFilter || 'NORMAL');
       setHistoryIndex(historyIndex - 1);
       setTimeout(() => { isHistoryAction.current = false; }, 100);
     }
@@ -337,12 +347,12 @@ export default function App() {
       setFormData(targetState.formData);
       setCurrentStyle(targetState.currentStyle);
       setSelectedEffect(targetState.selectedEffect || 'NONE');
+      setSelectedFilter(targetState.selectedFilter || 'NORMAL');
       setHistoryIndex(historyIndex + 1);
       setTimeout(() => { isHistoryAction.current = false; }, 100);
     }
   };
 
-  // Keyboard shortcut listener (Ctrl+Z, Ctrl+Y, Delete)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
@@ -376,7 +386,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [historyIndex, history]);
 
-  // Responsive Canvas Auto-Scaling
   useEffect(() => {
     const handleResize = () => {
       if (previewContainerRef.current) {
@@ -405,7 +414,7 @@ export default function App() {
       bgTextureUrl: null,
     };
     setFormData(updated);
-    pushHistory(updated, matchedStyle, selectedEffect);
+    pushHistory(updated, matchedStyle, selectedEffect, selectedFilter);
     confetti({ particleCount: 35, spread: 40 });
   };
 
@@ -413,7 +422,7 @@ export default function App() {
     const t = MASTER_TEMPLATES.find(x => x.id === selectedTemplateId) || MASTER_TEMPLATES[0];
     setFormData(t);
     setFontSizeOffset(0);
-    pushHistory(t, currentStyle, selectedEffect);
+    pushHistory(t, currentStyle, selectedEffect, selectedFilter);
   };
 
   const handleSaveDraft = () => {
@@ -433,7 +442,7 @@ export default function App() {
     const matchedStyle = LAYOUT_STYLES.find(s => s.id === draft.styleId) || LAYOUT_STYLES[0];
     setCurrentStyle(matchedStyle);
     setFormData(draft.data);
-    pushHistory(draft.data, matchedStyle, selectedEffect);
+    pushHistory(draft.data, matchedStyle, selectedEffect, selectedFilter);
   };
 
   const handleDeleteDraft = (id, e) => {
@@ -499,6 +508,61 @@ export default function App() {
     canvas.add(sticker);
     canvas.setActiveObject(sticker);
     canvas.renderAll();
+  };
+
+  // Upload Custom PNG sticker/logo
+  const handleCustomStickerUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+        const imgElement = new Image();
+        imgElement.src = event.target.result;
+        imgElement.onload = () => {
+          const fImg = new fabric.FabricImage(imgElement, {
+            left: 250,
+            top: 300,
+            originX: 'center',
+            originY: 'center',
+            scaleX: 100 / imgElement.width,
+            scaleY: 100 / imgElement.height,
+            selectable: true,
+            hasControls: true,
+            cornerColor: '#4F46E5',
+            cornerSize: 8,
+          });
+          canvas.add(fImg);
+          canvas.setActiveObject(fImg);
+          canvas.renderAll();
+        };
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAlignH = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    const activeObj = canvas.getActiveObject();
+    if (activeObj && activeObj.selectable) {
+      activeObj.set({ left: 250 });
+      activeObj.setCoords();
+      canvas.renderAll();
+    }
+  };
+
+  const handleAlignV = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    const activeObj = canvas.getActiveObject();
+    const cHeight = canvasFormat === 'STORY' ? 888 : 700;
+    if (activeObj && activeObj.selectable) {
+      activeObj.set({ top: cHeight / 2 });
+      activeObj.setCoords();
+      canvas.renderAll();
+    }
   };
 
   const handleDeleteSelected = () => {
@@ -573,7 +637,7 @@ export default function App() {
     });
 
     fabricCanvasRef.current = canvas;
-    renderTemplate(formData, currentStyle, canvasFormat, selectedFont, fontSizeOffset, showCornerBadges, frameShape, selectedEffect);
+    renderTemplate(formData, currentStyle, canvasFormat, selectedFont, fontSizeOffset, showCornerBadges, frameShape, selectedEffect, selectedFilter);
 
     return () => {
       canvas.dispose();
@@ -582,11 +646,11 @@ export default function App() {
 
   useEffect(() => {
     if (fabricCanvasRef.current) {
-      renderTemplate(formData, currentStyle, canvasFormat, selectedFont, fontSizeOffset, showCornerBadges, frameShape, selectedEffect);
+      renderTemplate(formData, currentStyle, canvasFormat, selectedFont, fontSizeOffset, showCornerBadges, frameShape, selectedEffect, selectedFilter);
     }
-  }, [formData, currentStyle, canvasFormat, selectedFont, fontSizeOffset, showCornerBadges, frameShape, selectedEffect]);
+  }, [formData, currentStyle, canvasFormat, selectedFont, fontSizeOffset, showCornerBadges, frameShape, selectedEffect, selectedFilter]);
 
-  const cropImageToShape = (imgUrl, shape = 'CIRCLE', size = 300) => {
+  const cropImageToShape = (imgUrl, shape = 'CIRCLE', size = 300, filter = 'NORMAL') => {
     return new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
@@ -595,6 +659,12 @@ export default function App() {
         offCanvas.width = size;
         offCanvas.height = size;
         const ctx = offCanvas.getContext('2d');
+
+        // Apply Color Filters
+        if (filter === 'GRAYSCALE') ctx.filter = 'grayscale(100%)';
+        else if (filter === 'SEPIA') ctx.filter = 'sepia(85%)';
+        else if (filter === 'BRIGHT') ctx.filter = 'brightness(120%) contrast(110%)';
+        else ctx.filter = 'none';
 
         ctx.beginPath();
         if (shape === 'CIRCLE' || shape === 'ROYAL_RING') {
@@ -623,7 +693,7 @@ export default function App() {
     });
   };
 
-  const renderTemplate = async (data, theme, format, fontFam, sizeOffset, withBadges, fShape, effectId) => {
+  const renderTemplate = async (data, theme, format, fontFam, sizeOffset, withBadges, fShape, effectId, filterId) => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
@@ -758,7 +828,7 @@ export default function App() {
 
     if (data.imageUrl) {
       try {
-        const croppedDataUrl = await cropImageToShape(data.imageUrl, fShape, 300);
+        const croppedDataUrl = await cropImageToShape(data.imageUrl, fShape, 300, filterId);
         const imgElement = new Image();
         imgElement.src = croppedDataUrl;
         imgElement.onload = () => {
@@ -941,7 +1011,7 @@ export default function App() {
       reader.onload = (event) => {
         const updated = { ...formData, imageUrl: event.target.result };
         setFormData(updated);
-        pushHistory(updated, currentStyle, selectedEffect);
+        pushHistory(updated, currentStyle, selectedEffect, selectedFilter);
       };
       reader.readAsDataURL(file);
     }
@@ -1015,7 +1085,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Top Action Buttons (Undo / Redo / PWA) */}
+        {/* Undo / Redo Actions */}
         <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             onClick={handleUndo}
@@ -1043,7 +1113,7 @@ export default function App() {
       {/* Main Workspace */}
       <main className="flex-1 w-full max-w-7xl mx-auto p-3 sm:p-5 md:p-8 flex flex-col items-center">
         
-        {/* Clean Centered Header & Search */}
+        {/* Header & Search Bar */}
         <header className="w-full mb-6 text-center max-w-5xl mx-auto px-4 flex flex-col items-center">
           <div className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-semibold mb-2 shadow-sm">
             <LayoutGrid size={14} /> ૫૦+ રેડી-મેડ ટેમ્પ્લેટ્સ & મલ્ટી-લેઆઉટ સ્ટાઇલ સ્ટુડિયો
@@ -1170,7 +1240,7 @@ export default function App() {
                     onClick={() => {
                       setFormData(prev => ({ ...prev, bgTextureUrl: null }));
                       setCurrentStyle(style);
-                      pushHistory({ ...formData, bgTextureUrl: null }, style, selectedEffect);
+                      pushHistory({ ...formData, bgTextureUrl: null }, style, selectedEffect, selectedFilter);
                     }}
                     className={`p-1.5 text-[11px] font-bold rounded-lg border transition truncate ${
                       currentStyle.id === style.id && !formData.bgTextureUrl
@@ -1183,7 +1253,7 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Ready-made Background Library */}
+              {/* Background Library */}
               <div>
                 <span className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-1.5">
                   <Sparkles size={13} className="text-indigo-600" /> પ્રી-સેટ બેકગ્રાઉન્ડ:
@@ -1195,7 +1265,7 @@ export default function App() {
                       onClick={() => {
                         const updated = { ...formData, bgTextureUrl: bg.value };
                         setFormData(updated);
-                        pushHistory(updated, currentStyle, selectedEffect);
+                        pushHistory(updated, currentStyle, selectedEffect, selectedFilter);
                       }}
                       className={`p-1.5 text-[11px] font-bold rounded-lg border transition truncate ${
                         formData.bgTextureUrl === bg.value
@@ -1236,6 +1306,31 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Photo Color Filters */}
+              <div>
+                <span className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-1.5">
+                  <ImageIcon size={13} className="text-indigo-600" /> ફોટો કલર ફિલ્ટર:
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
+                  {PHOTO_FILTERS.map((flt) => (
+                    <button
+                      key={flt.id}
+                      onClick={() => {
+                        setSelectedFilter(flt.id);
+                        pushHistory(formData, currentStyle, selectedEffect, flt.id);
+                      }}
+                      className={`py-1 px-1.5 rounded-lg text-[11px] font-bold transition border truncate ${
+                        selectedFilter === flt.id
+                          ? 'bg-indigo-50 border-indigo-600 text-indigo-700 shadow-sm'
+                          : 'bg-slate-50 border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {flt.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Text Shadow & Glow Effects */}
               <div>
                 <span className="text-xs font-bold text-slate-500 flex items-center gap-1 mb-1.5">
@@ -1247,7 +1342,7 @@ export default function App() {
                       key={eff.id}
                       onClick={() => {
                         setSelectedEffect(eff.id);
-                        pushHistory(formData, currentStyle, eff.id);
+                        pushHistory(formData, currentStyle, eff.id, selectedFilter);
                       }}
                       className={`py-1 px-2 rounded-lg text-xs font-bold transition border ${
                         selectedEffect === eff.id
@@ -1294,7 +1389,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Quick Tools */}
+              {/* Quick Tools & Layer Actions */}
               <div className="space-y-2 pt-2 border-t border-slate-100">
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <button
@@ -1303,6 +1398,11 @@ export default function App() {
                   >
                     <PlusCircle size={13} /> + ટેક્સ્ટ બોક્સ
                   </button>
+
+                  <label className="py-1.5 px-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition cursor-pointer">
+                    <UploadCloud size={13} /> + PNG લોગો/સ્ટીકર
+                    <input type="file" accept="image/*" onChange={handleCustomStickerUpload} className="hidden" />
+                  </label>
 
                   <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 px-2 py-1 rounded-lg">
                     <span className="text-[11px] font-bold text-slate-500">રંગ:</span>
@@ -1313,6 +1413,22 @@ export default function App() {
                       className="w-5 h-5 rounded cursor-pointer border-none bg-transparent"
                     />
                   </div>
+
+                  <button
+                    onClick={handleAlignH}
+                    className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold transition"
+                    title="Center Horizontally"
+                  >
+                    <AlignCenterHorizontal size={13} />
+                  </button>
+
+                  <button
+                    onClick={handleAlignV}
+                    className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold transition"
+                    title="Center Vertically"
+                  >
+                    <AlignCenterVertical size={13} />
+                  </button>
 
                   <button
                     onClick={handleBringForward}
@@ -1446,7 +1562,7 @@ export default function App() {
                   onChange={(e) => {
                     const updated = { ...formData, title: e.target.value };
                     setFormData(updated);
-                    pushHistory(updated, currentStyle, selectedEffect);
+                    pushHistory(updated, currentStyle, selectedEffect, selectedFilter);
                   }}
                   className="w-full p-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 text-xs"
                 />
@@ -1460,7 +1576,7 @@ export default function App() {
                   onChange={(e) => {
                     const updated = { ...formData, subHeader: e.target.value };
                     setFormData(updated);
-                    pushHistory(updated, currentStyle, selectedEffect);
+                    pushHistory(updated, currentStyle, selectedEffect, selectedFilter);
                   }}
                   className="w-full p-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 text-xs"
                 />
@@ -1474,7 +1590,7 @@ export default function App() {
                   onChange={(e) => {
                     const updated = { ...formData, personName: e.target.value };
                     setFormData(updated);
-                    pushHistory(updated, currentStyle, selectedEffect);
+                    pushHistory(updated, currentStyle, selectedEffect, selectedFilter);
                   }}
                   className="w-full p-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 text-xs"
                 />
@@ -1489,7 +1605,7 @@ export default function App() {
                     onChange={(e) => {
                       const updated = { ...formData, extraInfo1: e.target.value };
                       setFormData(updated);
-                      pushHistory(updated, currentStyle, selectedEffect);
+                      pushHistory(updated, currentStyle, selectedEffect, selectedFilter);
                     }}
                     className="w-full p-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 text-xs"
                   />
@@ -1502,7 +1618,7 @@ export default function App() {
                     onChange={(e) => {
                       const updated = { ...formData, extraInfo2: e.target.value };
                       setFormData(updated);
-                      pushHistory(updated, currentStyle, selectedEffect);
+                      pushHistory(updated, currentStyle, selectedEffect, selectedFilter);
                     }}
                     className="w-full p-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 text-xs"
                   />
@@ -1517,7 +1633,7 @@ export default function App() {
                   onChange={(e) => {
                     const updated = { ...formData, venue: e.target.value };
                     setFormData(updated);
-                    pushHistory(updated, currentStyle, selectedEffect);
+                    pushHistory(updated, currentStyle, selectedEffect, selectedFilter);
                   }}
                   className="w-full p-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 text-xs"
                 />
@@ -1531,13 +1647,13 @@ export default function App() {
                   onChange={(e) => {
                     const updated = { ...formData, footer: e.target.value };
                     setFormData(updated);
-                    pushHistory(updated, currentStyle, selectedEffect);
+                    pushHistory(updated, currentStyle, selectedEffect, selectedFilter);
                   }}
                   className="w-full p-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 text-xs"
                 />
               </div>
 
-              {/* Upload Box */}
+              {/* Upload Main Photo Box */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">ફોટો / લોગો અપલોડ</label>
                 <label className="flex flex-col items-center justify-center border border-dashed border-slate-300 bg-slate-50 hover:bg-slate-100 rounded-xl p-3 cursor-pointer transition text-center">
@@ -1552,7 +1668,7 @@ export default function App() {
                     onClick={() => {
                       const updated = { ...formData, imageUrl: null };
                       setFormData(updated);
-                      pushHistory(updated, currentStyle, selectedEffect);
+                      pushHistory(updated, currentStyle, selectedEffect, selectedFilter);
                     }}
                     className="text-xs text-red-500 hover:text-red-700 block text-center mt-1"
                   >
@@ -1562,7 +1678,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Direct Free Download Buttons */}
+            {/* Download Buttons */}
             <div className="space-y-2 pt-2">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                 <button
@@ -1604,7 +1720,7 @@ export default function App() {
                 </span>
               </div>
 
-              {/* Responsive Scaled Canvas Wrapper */}
+              {/* Scaled Canvas Wrapper */}
               <div 
                 className="w-full flex justify-center items-center overflow-hidden transition-all duration-200"
                 style={{
@@ -1628,7 +1744,7 @@ export default function App() {
               </p>
             </div>
 
-            {/* Quick Download Buttons on Mobile Preview View */}
+            {/* Quick Download Buttons on Mobile View */}
             <div className="w-full grid grid-cols-2 gap-2 lg:hidden">
               <button
                 onClick={handleDownloadPNG}
